@@ -1,16 +1,17 @@
-import shutil  
+import shutil
+import time
+import sys
 from colorama import Fore, Style, init
 
-init(autoreset=True) 
+init(autoreset=True)
 
 SIZE = 7  
 GAP = 2
 COLORS = [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN]
+DELAY = 0.3  
 
 def is_on(char, i, j):
     mid, last = SIZE // 2, SIZE - 1
-    
-    # Prédicats pour arrondir les coins (
     is_top_left = (i == 0 and j == 0)
     is_top_right = (i == 0 and j == last)
     is_bot_left = (i == last and j == 0)
@@ -44,9 +45,7 @@ def is_on(char, i, j):
         "X": i == j or i + j == last,
         "Y": (i <= mid and (i == j or i + j == last)) or (i > mid and j == mid),
         "Z": i == 0 or i == last or i + j == last,
-        
-      
-        "0": ( (i == 0 or i == last) and (0 < j < last) ) or ( (j == 0 or j == last) and (0 < i < last) ),
+        "0": ((i == 0 or i == last) and (0 < j < last)) or ((j == 0 or j == last) and (0 < i < last)),
         "1": (j == mid) or (i == 1 and j == mid - 1) or (i == last and 0 < j < last+1),
         "2": (i == 0 and 0 < j < last) or (i == mid and 0 < j < last) or (i == last) or (j == last and 0 < i < mid) or (j == 0 and mid < i < last),
         "3": (i in [0, mid, last] and j < last) or (j == last and not is_corner),
@@ -54,8 +53,8 @@ def is_on(char, i, j):
         "5": (i == 0) or (i == mid and 0 < j < last) or (i == last and j < last) or (j == 0 and 0 < i < mid) or (j == last and mid < i < last),
         "6": (i == 0 and j > 0) or (i == mid and 0 < j < last) or (i == last and 0 < j < last) or (j == 0 and 0 < i < last) or (j == last and mid < i < last),
         "7": (i == 0) or (j == last and i > 0) or (i == mid and j > mid),
-        "8": ( (i in [0, mid, last]) and 0 < j < last ) or ( (j == 0 or j == last) and not is_corner and i != mid ),
-        "9": ( (i in [0, mid, last]) and 0 < j < last ) or ( j == last and 0 < i < last ) or ( j == 0 and 0 < i < mid ),
+        "8": ((i in [0, mid, last]) and 0 < j < last) or ((j == 0 or j == last) and not is_corner and i != mid),
+        "9": ((i in [0, mid, last]) and 0 < j < last) or (j == last and 0 < i < last) or (j == 0 and 0 < i < mid),
         " ": False
     }
     return p.get(char.upper(), False)
@@ -63,42 +62,44 @@ def is_on(char, i, j):
 def draw(text):
     terminal_width = shutil.get_terminal_size().columns
     char_full_width = SIZE + GAP
-    
     chars_per_line = max(1, terminal_width // char_full_width)
     
-    # On garde une trace de l'index global pour la couleur
     global_pos = 0
-    
-    # Découper le texte par segments pour le wrapping
     for start in range(0, len(text), chars_per_line):
         segment = text[start : start + chars_per_line]
         
-        for i in range(SIZE):
-            line = ""
-            for local_idx, ch in enumerate(segment):
-                # Calcul de la couleur basée sur la position réelle dans la chaîne
-                current_char_pos = global_pos + local_idx
-                color = COLORS[current_char_pos % len(COLORS)]
-                
-                if ch == " ":
-                    line += " " * char_full_width
-                    continue
-                
-                for j in range(SIZE):
-                    if is_on(ch, i, j):
-                        line += color + "█"
+        # On affiche le segment lettre par lettre
+        for length in range(1, len(segment) + 1):
+            current_sub_segment = segment[:length]
+            
+            
+            if length > 1:
+                sys.stdout.write(f"\033[{SIZE}A")
+            
+            
+            for i in range(SIZE):
+                line = ""
+                for local_idx, ch in enumerate(current_sub_segment):
+                    color = COLORS[(global_pos + local_idx) % len(COLORS)]
+                    if ch == " ":
+                        line += " " * char_full_width
                     else:
-                        line += " "
-                line += " " * GAP
-            print(line)
-        
+                        for j in range(SIZE):
+                            line += (color + "█") if is_on(ch, i, j) else " "
+                        line += " " * GAP
+                
+                sys.stdout.write("\r" + line + " " * (terminal_width - len(line)))
+                sys.stdout.write("\n")
+            
+            sys.stdout.flush()
+            time.sleep(DELAY)
+            
         global_pos += len(segment)
-        print("\n") 
+        print("\n")
 
-    
 if __name__ == "__main__":
-    user_input = input("Entrez votre texte (lettres et chiffres) : ").strip()
-    word = user_input.upper() if user_input else "Draw letter"
+    user_input = input("Entrez votre texte : ").strip()
+    word = user_input.upper() if user_input else "HELLO WORLD"
 
     print("\n" + "="*shutil.get_terminal_size().columns + "\n")
     draw(word)
